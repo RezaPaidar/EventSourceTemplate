@@ -21,18 +21,18 @@ public sealed class EventStoreDbContext : DbContext
 
             builder.HasKey(x => x.Id);
 
-            builder.Property(x => x.Id).IsRequired();
+            builder.Property(x => x.EventId).IsRequired();
             builder.Property(x => x.AggregateId).IsRequired();
             builder.Property(x => x.AggregateType).HasMaxLength(200).IsRequired();
             builder.Property(x => x.EventType).HasMaxLength(500).IsRequired();
             builder.Property(x => x.Version).IsRequired();
-            builder.Property(x => x.Payload).HasColumnType("jsonb").IsRequired();
+            builder.Property(x => x.Data).HasColumnType("jsonb").IsRequired();
             builder.Property(x => x.Metadata).HasColumnType("jsonb").IsRequired();
-            builder.Property(x => x.OccurredOnUtc).IsRequired();
+            builder.Property(x => x.CreatedAt).IsRequired();
 
-            builder.HasIndex(x => x.Id).IsUnique();
+            builder.HasIndex(x => x.EventId).IsUnique();
             builder.HasIndex(x => new { x.AggregateId, x.Version }).IsUnique();
-            builder.HasIndex(x => new { x.AggregateId, x.OccurredOnUtc });
+            builder.HasIndex(x => new { x.AggregateId, x.CreatedAt });
         });
 
         modelBuilder.Entity<OutboxMessage>(builder =>

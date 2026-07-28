@@ -3,6 +3,7 @@ using RestaurantSystem.Domain.Core;
 using RestaurantSystem.Domain.Events.FoodItem;
 using RestaurantSystem.Domain.Events.Order;
 using System.Text.Json;
+using RestaurantSystem.Infrastructure.Persistence.Models;
 using IEventStore = RestaurantSystem.Application.Abstractions.Persistence.IEventStore;
 
 
@@ -58,7 +59,7 @@ public sealed class PostgresEventStore : IEventStore
                 domainEvent.GetType(),
                 _jsonSerializerOptions);
 
-            var storedEvent = new StoredEventModel
+            var storedEvent = new StoredEvent
             {
                 EventId = domainEvent.EventId,
                 AggregateId = aggregateId,
@@ -72,7 +73,7 @@ public sealed class PostgresEventStore : IEventStore
 
             _dbContext.StoredEvents.Add(storedEvent);
 
-            var outboxMessage = new OutboxMessageModel
+            var outboxMessage = new OutboxMessage
             {
                 Id = Guid.NewGuid(),
                 OccurredOnUtc = domainEvent.OccurredOnUtc,

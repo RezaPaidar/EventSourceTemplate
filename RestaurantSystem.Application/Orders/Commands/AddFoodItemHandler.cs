@@ -28,10 +28,14 @@ public class AddFoodItemHandler : IRequestHandler<AddFoodItemCommand>
         order.AddItem(command.MenuItemId, command.Name, command.Price, command.Quantity);
 
         // 4. Save to Store
-        await _eventStore.SaveEventsAsync<Order>(
+        var uncommittedEvents = order.GetUncommittedEvents().ToList();
+        var expectedVersion = order.Version - uncommittedEvents.Count;
+        
+        await _eventStore.SaveEventsAsync(
             order.Id,
-            order.GetUncommittedEvents(),
-            order.Version - order.GetUncommittedEvents().Count(),
+            nameof(Order),
+            uncommittedEvents,
+            expectedVersion,
             ct);
         
         // 5. Commit Transaction
