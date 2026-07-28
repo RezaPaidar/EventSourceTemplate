@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using RestaurantSystem.Infrastructure.ReadModels.Models;
 
 namespace RestaurantSystem.Infrastructure.ReadModels;
 

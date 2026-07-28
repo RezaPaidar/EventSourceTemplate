@@ -4,6 +4,7 @@ using RestaurantSystem.Domain.Core;
 using RestaurantSystem.Domain.Events;
 using RestaurantSystem.Domain.Events.FoodItem;
 using RestaurantSystem.Domain.Events.Order;
+using RestaurantSystem.Infrastructure.ReadModels.Models;
 
 namespace RestaurantSystem.Infrastructure.ReadModels;
 

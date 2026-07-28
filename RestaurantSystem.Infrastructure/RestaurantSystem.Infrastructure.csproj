@@ -14,4 +14,7 @@
       <ProjectReference Include="..\RestaurantSystem.Application\RestaurantSystem.Application.csproj" />
       <ProjectReference Include="..\RestaurantSystem.Domain\RestaurantSystem.Domain.csproj" />
     </ItemGroup>
+    <ItemGroup>
+      <Folder Include="ReadModels\Repositories\" />
+    </ItemGroup>
 </Project>

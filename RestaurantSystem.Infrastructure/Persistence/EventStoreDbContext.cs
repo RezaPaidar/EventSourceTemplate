@@ -1,9 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using RestaurantSystem.Infrastructure.Persistence.Models;
+using RestaurantSystem.Application.Abstractions.Persistence;
+using RestaurantSystem.Infrastructure.Persistence.EventStore.Models;
 
 namespace RestaurantSystem.Infrastructure.Persistence;
-
-public sealed class EventStoreDbContext : DbContext
+// DbContext for the write side, responsible for persisting domain events and outbox messages.
+public sealed class EventStoreDbContext : DbContext, IUnitOfWork
 {
     public EventStoreDbContext(DbContextOptions<EventStoreDbContext> options)
         : base(options)

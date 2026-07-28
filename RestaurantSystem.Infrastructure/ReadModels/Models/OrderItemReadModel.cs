@@ -1,4 +1,4 @@
-﻿namespace RestaurantSystem.Infrastructure.ReadModels;
+﻿namespace RestaurantSystem.Infrastructure.ReadModels.Models;
 
 public class OrderItemReadModel
 {

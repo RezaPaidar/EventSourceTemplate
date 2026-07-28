@@ -3,13 +3,13 @@ using RestaurantSystem.Domain.Core;
 using RestaurantSystem.Domain.Events.FoodItem;
 using RestaurantSystem.Domain.Events.Order;
 using System.Text.Json;
-using RestaurantSystem.Infrastructure.Persistence.Models;
+using RestaurantSystem.Infrastructure.Persistence.EventStore.Models;
 using IEventStore = RestaurantSystem.Application.Abstractions.Persistence.IEventStore;
 
 
 
 namespace RestaurantSystem.Infrastructure.Persistence;
-
+// Event store implementation for loading aggregate history and saving new events atomically.
 public sealed class PostgresEventStore : IEventStore
 {
     private readonly EventStoreDbContext _dbContext;
@@ -21,9 +21,7 @@ public sealed class PostgresEventStore : IEventStore
         { typeof(OrderConfirmed).Name, typeof(OrderConfirmed) }
     };
 
-    public PostgresEventStore(
-        EventStoreDbContext dbContext,
-        JsonSerializerOptions jsonSerializerOptions)
+    public PostgresEventStore(EventStoreDbContext dbContext, JsonSerializerOptions jsonSerializerOptions)
     {
         _dbContext = dbContext;
         _jsonSerializerOptions = jsonSerializerOptions;

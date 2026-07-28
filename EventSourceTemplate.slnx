@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="RestaurantSystem.Api/RestaurantSystem.Api.csproj" />
   <Project Path="RestaurantSystem.Application/RestaurantSystem.Application.csproj" />
   <Project Path="RestaurantSystem.Domain/RestaurantSystem.Domain.csproj" />
   <Project Path="RestaurantSystem.Infrastructure/RestaurantSystem.Infrastructure.csproj" />

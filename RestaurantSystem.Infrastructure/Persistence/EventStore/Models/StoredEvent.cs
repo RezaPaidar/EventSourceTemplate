@@ -1,5 +1,4 @@
-﻿namespace RestaurantSystem.Infrastructure.Persistence;
-
+﻿namespace RestaurantSystem.Infrastructure.Persistence.EventStore.Models;
 
 public sealed class StoredEvent
 {
