@@ -31,6 +31,6 @@ public abstract class AggregateRoot
             Version++;
         }
     }
-    
+
     protected abstract void ApplyEvent(IDomainEvent @event);
 }

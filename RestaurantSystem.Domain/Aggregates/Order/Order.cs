@@ -113,6 +113,13 @@ public class Order : AggregateRoot
                 throw new InvalidOperationException($"Unsupported event type: {@event.GetType().Name}");
         }
     }
+    public static Order LoadFromHistory(Guid id, IReadOnlyList<IDomainEvent> history)
+    {
+        var order = new Order();
+        order.Id = id;
+        order.LoadFromHistory(history);
+        return order;
+    }
 }
 
 public record OrderItem(Guid MenuItemId, string Name, decimal Price);
