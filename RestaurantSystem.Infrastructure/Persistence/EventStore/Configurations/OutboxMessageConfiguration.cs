@@ -33,6 +33,10 @@ public sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<Outbox
             .HasMaxLength(4000)
             .IsRequired(false);
 
+        builder.Property(e => e.Headers)
+        .HasColumnType("jsonb")
+        .IsRequired(false);
+
         builder.HasIndex(x => x.ProcessedOnUtc);
         builder.HasIndex(x => x.OccurredOnUtc);
         builder.HasIndex(x => new { x.ProcessedOnUtc, x.OccurredOnUtc });

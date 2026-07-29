@@ -13,6 +13,7 @@
     <ItemGroup>
       <ProjectReference Include="..\RestaurantSystem.Application\RestaurantSystem.Application.csproj" />
       <ProjectReference Include="..\RestaurantSystem.Domain\RestaurantSystem.Domain.csproj" />
+      <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.0" />
     </ItemGroup>
     <ItemGroup>
       <Folder Include="ReadModels\Repositories\" />

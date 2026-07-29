@@ -1,12 +1,15 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using RestaurantSystem.Application.Abstractions.Messaging;
 using RestaurantSystem.Application.Abstractions.Persistence;
 using RestaurantSystem.Application.Abstractions.Projections;
 using RestaurantSystem.Domain.Aggregates.Order;
+using RestaurantSystem.Infrastructure.Messaging;
+using RestaurantSystem.Infrastructure.Messaging.Outbox;
 using RestaurantSystem.Infrastructure.Persistence;
 using RestaurantSystem.Infrastructure.Persistence.EventStore;
-using RestaurantSystem.Infrastructure.Persistence.Projections;
+using RestaurantSystem.Infrastructure.ReadModels;
 using RestaurantSystem.Infrastructure.Serialization;
 
 namespace RestaurantSystem.Infrastructure;
@@ -22,9 +25,9 @@ public static class DependencyInjection
 
         services.AddDbContext<EventStoreDbContext>(options =>
             options.UseNpgsql(connectionString, o =>
-                o.MigrationsHistoryTable("__EFMigrationsHistory_EventStore")));
+                o.MigrationsHistoryTable("__EFMigrationsHistory")));
 
-        services.AddDbContext<ApplicationDbContext>(options =>
+        services.AddDbContext<ReadDbContext>(options =>
             options.UseNpgsql(connectionString, o =>
                 o.MigrationsHistoryTable("__EFMigrationsHistory_Read")));
 
@@ -39,8 +42,15 @@ public static class DependencyInjection
 
         services.AddSingleton<ISerializer, EventSerializer>();
 
-        services.AddScoped<IOrderProjector, OrderProjector>();
+        services.AddScoped<IOrderProjector, RestaurantSystem.Infrastructure.Persistence.Projections.OrderProjector>();
         services.AddScoped<IAggregateStore<Order>, OrderAggregateStore>();
+
+        services.Configure<OutboxDispatcherOptions>(
+            configuration.GetSection(nameof(OutboxDispatcherOptions)));
+        services.AddScoped<IOutboxDispatcher, OutboxDispatcher>();
+        services.AddHostedService<OutboxDispatcherBackgroundService>();
+
+        services.AddScoped<IIntegrationEventPublisher, NoOpIntegrationEventPublisher>();
 
         return services;
     }

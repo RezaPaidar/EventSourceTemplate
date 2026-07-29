@@ -1,4 +1,5 @@
 ﻿namespace RestaurantSystem.Infrastructure.Persistence.EventStore.Models;
+
 public sealed class OutboxMessage
 {
     public Guid Id { get; set; }
@@ -7,4 +8,7 @@ public sealed class OutboxMessage
     public DateTime OccurredOnUtc { get; set; }
     public DateTime? ProcessedOnUtc { get; set; }
     public string? Error { get; set; }
+    public DateTime? ProcessingStartedAt { get; set; }
+    public Guid? LockId { get; set; }
+    public Dictionary<string, string>? Headers { get; set; }
 }

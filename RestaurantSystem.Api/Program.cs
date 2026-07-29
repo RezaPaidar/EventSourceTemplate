@@ -1,6 +1,9 @@
+using Microsoft.EntityFrameworkCore;
 using RestaurantSystem.Api.Middleware;
 using RestaurantSystem.Application;
 using RestaurantSystem.Infrastructure;
+using RestaurantSystem.Infrastructure.Persistence.EventStore;
+using RestaurantSystem.Infrastructure.ReadModels;
 
 var builder = WebApplication.CreateBuilder(args);
 
