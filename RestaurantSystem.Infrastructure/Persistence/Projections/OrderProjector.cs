@@ -28,17 +28,28 @@ public class OrderProjector(ReadDbContext dbContext) : IOrderProjector
         var summary = await _dbContext.OrderSummaries.FindAsync([e.OrderId], ct);
         if (summary == null) return;
 
-        var item = new OrderItemReadModel
-        {
-            Id = Guid.NewGuid(),
-            OrderId = e.OrderId,
-            MenuItemId = e.MenuItemId,
-            Name = e.Name,
-            Price = e.Price,
-            Quantity = e.Quantity
-        };
+        var existingItem = await _dbContext.OrderItems
+                .FirstOrDefaultAsync(x => x.OrderId == e.OrderId && x.MenuItemId == e.MenuItemId, ct);
 
-        _dbContext.OrderItems.Add(item);
+
+        if (existingItem != null)
+        {
+            existingItem.Quantity += e.Quantity;
+        }
+        else
+        {
+            var item = new OrderItemReadModel
+            {
+                Id = Guid.NewGuid(),
+                OrderId = e.OrderId,
+                MenuItemId = e.MenuItemId,
+                Name = e.Name,
+                Price = e.Price,
+                Quantity = e.Quantity
+            };
+            _dbContext.OrderItems.Add(item);
+        }
+
         summary.TotalPrice += (e.Price * e.Quantity);
     }
     private async Task ApplyFoodItemRemoved(FoodItemRemoved e, CancellationToken ct)
@@ -49,9 +60,21 @@ public class OrderProjector(ReadDbContext dbContext) : IOrderProjector
         if (item == null) return;
 
         var summary = await _dbContext.OrderSummaries.FindAsync([e.OrderId], ct);
-        if (summary != null) summary.TotalPrice -= (item.Price * item.Quantity);
+        var quantityToRemove = Math.Min(item.Quantity, e.Quantity);
 
-        _dbContext.OrderItems.Remove(item);
+        if (summary != null)
+        {
+            summary.TotalPrice -= (item.Price * quantityToRemove);
+        }
+
+        if (item.Quantity <= e.Quantity)
+        {
+            _dbContext.OrderItems.Remove(item);
+        }
+        else
+        {
+            item.Quantity -= e.Quantity;
+        }
     }
     private async Task ApplyOrderConfirmed(OrderConfirmed e, CancellationToken ct)
     {

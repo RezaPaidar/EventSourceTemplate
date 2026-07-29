@@ -7,5 +7,6 @@ public record FoodItemRemoved : IDomainEvent
     public Guid EventId { get; init; }
     public Guid OrderId { get; init; }
     public Guid MenuItemId { get; init; }
+    public int Quantity { get; init; }
     public DateTime OccurredOnUtc { get; init; }
 }
