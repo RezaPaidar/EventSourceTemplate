@@ -4,7 +4,7 @@ using RestaurantSystem.Domain.Aggregates.OrderAggregate;
 
 namespace RestaurantSystem.Application.Orders.Commands;
 
-public class AddFoodItemHandler : IRequestHandler<AddFoodItemCommand>
+public sealed class AddFoodItemHandler : IRequestHandler<AddFoodItemCommand>
 {
     private readonly IEventStore _eventStore;
     private readonly IUnitOfWork _unitOfWork;
@@ -17,19 +17,19 @@ public class AddFoodItemHandler : IRequestHandler<AddFoodItemCommand>
 
     public async Task Handle(AddFoodItemCommand command, CancellationToken ct)
     {
-        // 1. Load Event Stream
+        // 1. Load event history from the aggregate
         var events = await _eventStore.LoadEventsAsync(command.OrderId, ct);
 
-        // 2. Rehydrate Aggregate
+        // 2. Reconstitute Aggregate (Domain logic), Rehydrate Aggregate
         var order = new Order();
         order.LoadFromHistory(events);
 
-        // 3. Execute Domain Behavior
+        // 3. Apply Domain Command and Execute Domain Behavior
         order.AddItem(command.MenuItemId, command.Name, command.Price, command.Quantity);
 
         // 4. Save to Store
         var uncommittedEvents = order.GetUncommittedEvents().ToList();
-        var expectedVersion = order.Version - uncommittedEvents.Count;
+        var expectedVersion = events.Count - 1;        
         
         await _eventStore.SaveEventsAsync(
             order.Id,

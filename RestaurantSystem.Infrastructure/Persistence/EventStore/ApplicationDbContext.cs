@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 
-namespace RestaurantSystem.Infrastructure.Persistence;
+namespace RestaurantSystem.Infrastructure.Persistence.EventStore;
 
 // DbContext for the read side, used for projections and query models.
 public sealed class ApplicationDbContext : DbContext

@@ -1,6 +1,6 @@
 ﻿namespace RestaurantSystem.Application.Orders.Queries.GetOrderById;
 
-public class GetOrderByIdQueryHandler
+public sealed  class GetOrderByIdQueryHandler
 {
     
 }

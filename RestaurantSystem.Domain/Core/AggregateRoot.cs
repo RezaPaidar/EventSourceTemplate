@@ -32,14 +32,5 @@ public abstract class AggregateRoot
         }
     }
     
-    public void ReplayEvents(IEnumerable<IDomainEvent> events)
-    {
-        foreach (var @event in events)
-        {
-            ApplyEvent(@event);
-            Version++;
-        }
-    }
-
     protected abstract void ApplyEvent(IDomainEvent @event);
 }

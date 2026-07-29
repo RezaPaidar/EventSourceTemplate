@@ -8,7 +8,7 @@ using IEventStore = RestaurantSystem.Application.Abstractions.Persistence.IEvent
 
 
 
-namespace RestaurantSystem.Infrastructure.Persistence;
+namespace RestaurantSystem.Infrastructure.Persistence.EventStore;
 // Event store implementation for loading aggregate history and saving new events atomically.
 public sealed class PostgresEventStore : IEventStore
 {

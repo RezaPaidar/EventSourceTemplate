@@ -3,7 +3,7 @@ using RestaurantSystem.Domain.Events;
 using RestaurantSystem.Domain.Events.FoodItem;
 using RestaurantSystem.Domain.Events.Order;
 
-namespace RestaurantSystem.Domain.Aggregates.OrderAggregate;
+namespace RestaurantSystem.Domain.Aggregates.Order;
 
 public class Order : AggregateRoot
 {
