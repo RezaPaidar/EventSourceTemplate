@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Confluent.Kafka;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using RestaurantSystem.Application.Abstractions.Messaging;
@@ -6,6 +7,7 @@ using RestaurantSystem.Application.Abstractions.Persistence;
 using RestaurantSystem.Application.Abstractions.Projections;
 using RestaurantSystem.Domain.Aggregates.Order;
 using RestaurantSystem.Infrastructure.Messaging.Kafka;
+using RestaurantSystem.Infrastructure.Messaging.Kafka.Consumers;
 using RestaurantSystem.Infrastructure.Messaging.Outbox;
 using RestaurantSystem.Infrastructure.Persistence;
 using RestaurantSystem.Infrastructure.Persistence.EventStore;
@@ -53,6 +55,18 @@ public static class DependencyInjection
 
         services.Configure<KafkaPublisherOptions>(configuration.GetSection(nameof(KafkaPublisherOptions)));
         services.AddScoped<IIntegrationEventPublisher, KafkaEventPublisher>();
+
+        services.AddSingleton<IConsumer<string, string>>(sp =>
+        {
+            var config = new ConsumerConfig
+            {
+                BootstrapServers = configuration["KafkaPublisherOptions:BootstrapServers"],
+                GroupId = configuration["KafkaPublisherOptions:GroupId"],
+                AutoOffsetReset = AutoOffsetReset.Earliest
+            };
+            return new ConsumerBuilder<string, string>(config).Build();
+        });
+        services.AddHostedService<OrderIntegrationEventConsumer>();
 
         return services;
     }

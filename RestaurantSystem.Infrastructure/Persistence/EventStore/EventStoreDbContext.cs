@@ -13,6 +13,7 @@ public sealed class EventStoreDbContext : DbContext, IUnitOfWork
 
     public DbSet<StoredEvent> StoredEvents => Set<StoredEvent>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+    public DbSet<InboxMessage> InboxMessages { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
