@@ -18,9 +18,7 @@ namespace RestaurantSystem.Infrastructure;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddInfrastructure(
-        this IServiceCollection services,
-        IConfiguration configuration)
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         var connectionString = configuration.GetConnectionString("Database")
                                ?? throw new InvalidOperationException("Connection string 'Database' not found.");
@@ -55,6 +53,8 @@ public static class DependencyInjection
 
         services.Configure<KafkaPublisherOptions>(configuration.GetSection(nameof(KafkaPublisherOptions)));
         services.AddScoped<IIntegrationEventPublisher, KafkaEventPublisher>();
+
+        services.AddScoped<IIntegrationEventDispatcher, IntegrationEventDispatcher>();
 
         services.AddSingleton<IConsumer<string, string>>(sp =>
         {
