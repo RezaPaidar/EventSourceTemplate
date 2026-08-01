@@ -81,6 +81,7 @@ public sealed class PostgresEventStore : IEventStore
 
             _dbContext.OutboxMessages.Add(outboxMessage);
         }
+        await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
 

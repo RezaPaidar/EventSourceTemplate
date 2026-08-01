@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using RestaurantSystem.Infrastructure.ReadModels.Models;
+using RestaurantSystem.Infrastructure.ReadStore.Models;
 
-namespace RestaurantSystem.Infrastructure.ReadModels;
+namespace RestaurantSystem.Infrastructure.ReadStore;
 
 public class ReadDbContext : DbContext
 {

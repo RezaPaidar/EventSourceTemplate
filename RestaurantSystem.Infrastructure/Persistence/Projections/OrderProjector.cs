@@ -2,8 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using RestaurantSystem.Application.Abstractions.Projections;
 using RestaurantSystem.Domain.Aggregates.Order.Events;
 using RestaurantSystem.Domain.Core;
-using RestaurantSystem.Infrastructure.ReadModels;
-using RestaurantSystem.Infrastructure.ReadModels.Models;
+using RestaurantSystem.Infrastructure.ReadStore;
+using RestaurantSystem.Infrastructure.ReadStore.Models;
 
 namespace RestaurantSystem.Infrastructure.Persistence.Projections;
 

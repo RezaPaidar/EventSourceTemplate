@@ -5,11 +5,11 @@ using RestaurantSystem.Application.Abstractions.Messaging;
 using RestaurantSystem.Application.Abstractions.Persistence;
 using RestaurantSystem.Application.Abstractions.Projections;
 using RestaurantSystem.Domain.Aggregates.Order;
-using RestaurantSystem.Infrastructure.Messaging;
+using RestaurantSystem.Infrastructure.Messaging.Kafka;
 using RestaurantSystem.Infrastructure.Messaging.Outbox;
 using RestaurantSystem.Infrastructure.Persistence;
 using RestaurantSystem.Infrastructure.Persistence.EventStore;
-using RestaurantSystem.Infrastructure.ReadModels;
+using RestaurantSystem.Infrastructure.ReadStore;
 using RestaurantSystem.Infrastructure.Serialization;
 
 namespace RestaurantSystem.Infrastructure;
@@ -25,7 +25,8 @@ public static class DependencyInjection
 
         services.AddDbContext<EventStoreDbContext>(options =>
             options.UseNpgsql(connectionString, o =>
-                o.MigrationsHistoryTable("__EFMigrationsHistory")));
+                o.MigrationsHistoryTable("__EFMigrationsHistory", "EventStore")));
+
 
         services.AddDbContext<ReadDbContext>(options =>
             options.UseNpgsql(connectionString, o =>
@@ -50,7 +51,8 @@ public static class DependencyInjection
         services.AddScoped<IOutboxDispatcher, OutboxDispatcher>();
         services.AddHostedService<OutboxDispatcherBackgroundService>();
 
-        services.AddScoped<IIntegrationEventPublisher, NoOpIntegrationEventPublisher>();
+        services.Configure<KafkaPublisherOptions>(configuration.GetSection(nameof(KafkaPublisherOptions)));
+        services.AddScoped<IIntegrationEventPublisher, KafkaEventPublisher>();
 
         return services;
     }

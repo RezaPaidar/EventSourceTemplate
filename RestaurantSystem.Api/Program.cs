@@ -3,7 +3,7 @@ using RestaurantSystem.Api.Middleware;
 using RestaurantSystem.Application;
 using RestaurantSystem.Infrastructure;
 using RestaurantSystem.Infrastructure.Persistence.EventStore;
-using RestaurantSystem.Infrastructure.ReadModels;
+using RestaurantSystem.Infrastructure.ReadStore;
 
 var builder = WebApplication.CreateBuilder(args);
 

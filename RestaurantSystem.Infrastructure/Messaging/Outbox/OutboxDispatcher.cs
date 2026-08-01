@@ -23,19 +23,21 @@ public sealed class OutboxDispatcher(
 
         // تکنیک: انتخاب و Lock کردن اتمیک با FOR UPDATE SKIP LOCKED
         // این Query به Postgres می‌گوید: ردیف‌های آزاد را بگیر و Lock کن، بقیه را Skip کن.
-        var sql = $@"
-        UPDATE ""OutboxMessages""
-        SET ""ProcessingStartedAt"" = @p0, ""LockId"" = @p1
-        WHERE ""Id"" IN (
-            SELECT ""Id"" FROM ""OutboxMessages""
-            WHERE ""ProcessedOnUtc"" IS NULL 
-              AND ""Error"" IS NULL 
-              AND ""ProcessingStartedAt"" IS NULL
-            ORDER BY ""OccurredOnUtc""
-            LIMIT {batchSize}
-            FOR UPDATE SKIP LOCKED
-        )
-        RETURNING *;";
+        // اصلاح کوئری در OutboxDispatcher
+        string sql = @"
+                UPDATE ""EventStore"".""OutboxMessages""
+                SET ""ProcessingStartedAt"" = @p0, ""LockId"" = @p1
+                WHERE ""Id"" IN (
+                    SELECT ""Id"" FROM ""EventStore"".""OutboxMessages""
+                    WHERE ""ProcessedOnUtc"" IS NULL 
+                    AND ""Error"" IS NULL 
+                    AND ""ProcessingStartedAt"" IS NULL
+                    ORDER BY ""OccurredOnUtc""
+                    LIMIT 10
+                    FOR UPDATE SKIP LOCKED
+                )
+                RETURNING *;";
+
 
         var messages = await db.OutboxMessages
             .FromSqlRaw(sql, now, workerId)
