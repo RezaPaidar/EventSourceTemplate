@@ -75,7 +75,7 @@ public sealed class PostgresEventStore : IEventStore
             {
                 Id = Guid.NewGuid(),
                 OccurredOnUtc = domainEvent.OccurredOnUtc,
-                Type = domainEvent.GetType().Name,
+                Type = GetOutboxType(domainEvent),
                 Payload = serializedPayload
             };
 
@@ -83,8 +83,19 @@ public sealed class PostgresEventStore : IEventStore
         }
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
-
-
+    private static readonly Dictionary<Type, string> OutboxTypeMap = new()
+    {
+        { typeof(FoodItemAdded), "order.food-item-added.v1" },
+    };
+    private string GetOutboxType(IDomainEvent domainEvent)
+    {
+        if (OutboxTypeMap.TryGetValue(domainEvent.GetType(), out var outboxType))
+        {
+            return outboxType;
+        }
+        // اگر نیاز به Publish نیست، یا یک Type پیش‌فرض بده، یا خطا
+        return domainEvent.GetType().Name;
+    }
     public async Task<IReadOnlyList<IDomainEvent>> LoadEventsAsync(
         Guid aggregateId,
         CancellationToken cancellationToken = default)

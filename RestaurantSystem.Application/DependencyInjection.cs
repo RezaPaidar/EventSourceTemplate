@@ -29,6 +29,8 @@ public static class DependencyInjection
 
         foreach (var handler in handlers)
         {
+            Console.WriteLine(
+        $"{handler.Implementation.FullName} -> {handler.Interface.FullName} ");
             services.AddScoped(handler.Interface, handler.Implementation);
         }
 

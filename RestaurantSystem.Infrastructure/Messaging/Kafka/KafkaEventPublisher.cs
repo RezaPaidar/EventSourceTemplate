@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Text;
+using System.Text.Json;
 using Confluent.Kafka;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -31,28 +32,24 @@ public sealed class KafkaEventPublisher : IIntegrationEventPublisher
         _producer = new ProducerBuilder<string, string>(config).Build();
     }
 
-    public async Task PublishAsync(
-        IntegrationEventEnvelope envelope,
-        CancellationToken cancellationToken = default)
+    public async Task PublishAsync(IntegrationEventEnvelope envelope, CancellationToken cancellationToken = default)
     {
-        // key را از MessageId می‌گیریم تا ordering per-key حفظ شود
         var key = envelope.MessageId.ToString();
 
-        // خود envelope را به JSON تبدیل می‌کنیم (نه فقط PayloadJson)
         var value = JsonSerializer.Serialize(envelope, _jsonOptions);
 
         var message = new Message<string, string>
         {
             Key = key,
             Value = value,
-            Headers = ToKafkaHeaders(envelope.Headers)
+            Headers = ToKafkaHeaders(envelope)
         };
 
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var deliveryResult = await _producer.ProduceAsync(_options.Topic, message);
+            var deliveryResult = await _producer.ProduceAsync(_options.Topic, message, cancellationToken);
 
             _logger.LogInformation(
                 "Integration event envelope {Type} with id {MessageId} published to Kafka topic {Topic} at offset {Offset}.",
@@ -88,18 +85,25 @@ public sealed class KafkaEventPublisher : IIntegrationEventPublisher
         }
     }
 
-    private static Headers? ToKafkaHeaders(IReadOnlyDictionary<string, string>? headers)
+    private static Headers? ToKafkaHeaders(IntegrationEventEnvelope envelope)
     {
-        if (headers is null || headers.Count == 0)
+        var kafkaHeaders = new Headers();
+
+        if (envelope.Headers is not null)
         {
-            return null;
+            foreach (var header in envelope.Headers)
+            {
+                kafkaHeaders.Add(
+                    header.Key,
+                    Encoding.UTF8.GetBytes(header.Value));
+            }
         }
 
-        var kafkaHeaders = new Headers();
-        foreach (var kv in headers)
+        if (!kafkaHeaders.Any(h => h.Key == "message-type"))
         {
-            // Header value باید byte[] باشد
-            kafkaHeaders.Add(kv.Key, System.Text.Encoding.UTF8.GetBytes(kv.Value));
+            kafkaHeaders.Add(
+                "message-type",
+                Encoding.UTF8.GetBytes(envelope.Type));
         }
 
         return kafkaHeaders;

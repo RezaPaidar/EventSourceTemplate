@@ -60,7 +60,7 @@ public class OrderIntegrationEventConsumer : BackgroundService
                     continue;
                 }
 
-                if (await dbContext.InboxMessages.FindAsync(new object[] { messageId }, stoppingToken) != null)
+                if (await dbContext.InboxMessages.FindAsync(new object[] { messageId }, stoppingToken) is not null)
                     continue;
 
                 await dispatcher.DispatchAsync(
@@ -79,6 +79,8 @@ public class OrderIntegrationEventConsumer : BackgroundService
 
                 await dbContext.SaveChangesAsync(stoppingToken);
                 await transaction.CommitAsync(stoppingToken);
+
+                _consumer.Commit(result);
             }
             catch (Exception ex)
             {

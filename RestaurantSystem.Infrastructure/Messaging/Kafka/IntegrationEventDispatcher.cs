@@ -29,8 +29,14 @@ public sealed class IntegrationEventDispatcher : IIntegrationEventDispatcher
         {
             throw new NotSupportedException($"Unknown message type: {messageType}");
         }
+        var envelope = JsonSerializer.Deserialize<IntegrationEventEnvelope>(payload,
+            new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            })
+            ?? throw new InvalidOperationException("Failed to deserialize integration event envelope.");
 
-        var integrationEvent = JsonSerializer.Deserialize(payload, eventType, new JsonSerializerOptions
+        var integrationEvent = JsonSerializer.Deserialize(envelope.PayloadJson, eventType, new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true
         }) ?? throw new InvalidOperationException("Failed to deserialize integration event.");
@@ -41,7 +47,10 @@ public sealed class IntegrationEventDispatcher : IIntegrationEventDispatcher
 
         var handler = scope.ServiceProvider.GetRequiredService(handlerType);
 
-        var method = handlerType.GetMethod(nameof(IIntegrationEventHandler<object>.HandleAsync));
+        var method = handlerType.GetMethod(
+            nameof(IIntegrationEventHandler<object>.HandleAsync))
+            ?? throw new InvalidOperationException(
+                $"HandleAsync was not found on {handlerType.Name}.");
 
         await (Task)method!.Invoke(handler, new object[] { integrationEvent, cancellationToken })!;
     }
