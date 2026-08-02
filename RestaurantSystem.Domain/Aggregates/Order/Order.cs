@@ -1,7 +1,5 @@
-﻿using RestaurantSystem.Domain.Core;
-using RestaurantSystem.Domain.Events;
-using RestaurantSystem.Domain.Events.FoodItem;
-using RestaurantSystem.Domain.Events.Order;
+﻿using RestaurantSystem.Domain.Aggregates.Order.Events;
+using RestaurantSystem.Domain.Core;
 
 namespace RestaurantSystem.Domain.Aggregates.Order;
 
