@@ -1,10 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using RestaurantSystem.Domain.Core;
-using RestaurantSystem.Domain.Events.FoodItem;
-using RestaurantSystem.Domain.Events.Order;
 using System.Text.Json;
 using RestaurantSystem.Infrastructure.Persistence.EventStore.Models;
 using IEventStore = RestaurantSystem.Application.Abstractions.Persistence.IEventStore;
+using RestaurantSystem.Domain.Aggregates.Order.Events;
 
 
 
