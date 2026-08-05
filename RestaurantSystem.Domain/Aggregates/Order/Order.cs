@@ -3,31 +3,32 @@ using RestaurantSystem.Domain.Core;
 
 namespace RestaurantSystem.Domain.Aggregates.Order;
 
-public class Order : AggregateRoot
+public sealed class Order : AggregateRoot
 {
     private bool _isConfirmed;
     private readonly List<OrderItem> _items = new();
 
     public int TableNumber { get; private set; }
 
-    public Order()
-    {
-    }
+    private Order() { }
 
-    public static Order Start(Guid id, int tableNumber)
+    public static Order Start(Guid orderId, int tableNumber, DateTime occurredOnUtc)
     {
         var order = new Order();
-        order.RaiseEvent(new OrderStarted
+
+        var @event = new OrderStarted
         {
             EventId = Guid.NewGuid(),
-            OrderId = id,
+            OrderId = orderId,
             TableNumber = tableNumber,
-            OccurredOnUtc = DateTime.UtcNow
-        });
+            OccurredOnUtc = occurredOnUtc
+        };
+
+        order.RaiseEvent(@event);
         return order;
     }
 
-    public void AddItem(Guid menuItemId, string name, decimal price, int quantity)
+    public void AddItem(Guid menuItemId, string name, decimal price, int quantity, DateTime occurredOnUtc)
     {
         if (_isConfirmed)
             throw new InvalidOperationException("Cannot add items to a confirmed order.");
@@ -38,7 +39,7 @@ public class Order : AggregateRoot
         if (price <= 0)
             throw new InvalidOperationException("Price must be greater than zero.");
 
-        RaiseEvent(new FoodItemAdded
+        var @event = (new FoodItemAdded
         {
             EventId = Guid.NewGuid(),
             OrderId = Id,
@@ -46,11 +47,13 @@ public class Order : AggregateRoot
             Name = name,
             Price = price,
             Quantity = quantity,
-            OccurredOnUtc = DateTime.UtcNow
+            OccurredOnUtc = occurredOnUtc
         });
+
+        RaiseEvent(@event);
     }
 
-    public void RemoveItem(Guid menuItemId)
+    public void RemoveItem(Guid menuItemId, int quantity, DateTime occurredOnUtc)
     {
         if (_isConfirmed)
             throw new InvalidOperationException("Cannot remove items from a confirmed order.");
@@ -58,16 +61,19 @@ public class Order : AggregateRoot
         if (_items.All(x => x.MenuItemId != menuItemId))
             throw new InvalidOperationException("Item not found in order.");
 
-        RaiseEvent(new FoodItemRemoved
+        var @event = new FoodItemRemoved
         {
             EventId = Guid.NewGuid(),
             OrderId = Id,
             MenuItemId = menuItemId,
-            OccurredOnUtc = DateTime.UtcNow
-        });
+            Quantity = quantity,
+            OccurredOnUtc = occurredOnUtc
+        };
+
+        RaiseEvent(@event);
     }
 
-    public void Confirm()
+    public void Confirm(DateTime occurredOnUtc)
     {
         if (_isConfirmed)
             return;
@@ -75,43 +81,64 @@ public class Order : AggregateRoot
         if (!_items.Any())
             throw new InvalidOperationException("Cannot confirm an empty order.");
 
-        RaiseEvent(new OrderConfirmed
+        var @event = new OrderConfirmed
         {
             EventId = Guid.NewGuid(),
             OrderId = Id,
-            OccurredOnUtc = DateTime.UtcNow
-        });
+            OccurredOnUtc = occurredOnUtc
+        };
+
+        RaiseEvent(@event);
     }
 
-    protected override void ApplyEvent(IDomainEvent @event)
+    protected override void When(IEventSourcedEvent @event)
     {
         switch (@event)
         {
             case OrderStarted e:
-                Id = e.OrderId;
-                TableNumber = e.TableNumber;
-                _isConfirmed = false;
+                Apply(e);
                 break;
 
             case FoodItemAdded e:
-                _items.Add(new OrderItem(e.MenuItemId, e.Name, e.Price));
+                Apply(e);
                 break;
 
             case FoodItemRemoved e:
-                var item = _items.FirstOrDefault(x => x.MenuItemId == e.MenuItemId);
-                if (item is not null)
-                    _items.Remove(item);
+                Apply(e);
                 break;
 
-            case OrderConfirmed:
-                _isConfirmed = true;
+            case OrderConfirmed e:
+                Apply(e);
                 break;
 
             default:
                 throw new InvalidOperationException($"Unsupported event type: {@event.GetType().Name}");
         }
     }
-    public static Order LoadFromHistory(Guid id, IReadOnlyList<IDomainEvent> history)
+    private void Apply(OrderStarted e)
+    {
+        Id = e.OrderId;
+        TableNumber = e.TableNumber;
+        _isConfirmed = false;
+        _items.Clear();
+    }
+    private void Apply(FoodItemAdded e)
+    {
+        _items.Add(new OrderItem(e.MenuItemId, e.Name, e.Price));
+    }
+
+    private void Apply(FoodItemRemoved e)
+    {
+        var item = _items.FirstOrDefault(x => x.MenuItemId == e.MenuItemId);
+        if (item is not null)
+            _items.Remove(item);
+    }
+
+    private void Apply(OrderConfirmed e)
+    {
+        _isConfirmed = true;
+    }
+    public static Order LoadFromHistory(Guid id, IReadOnlyList<IEventSourcedEvent> history)
     {
         var order = new Order();
         order.Id = id;

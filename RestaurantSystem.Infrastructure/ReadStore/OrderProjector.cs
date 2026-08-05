@@ -9,7 +9,7 @@ namespace RestaurantSystem.Infrastructure.ReadStore;
 public class OrderProjector : IOrderProjector
 {
     private readonly ReadDbContext _readDbContext;
-
+    private const string ProjectorName = "OrderProjector";
     public OrderProjector(ReadDbContext readDbContext)
     {
         _readDbContext = readDbContext;
@@ -17,45 +17,47 @@ public class OrderProjector : IOrderProjector
 
     public async Task ProjectAsync(IEnumerable<IDomainEvent> events, CancellationToken cancellationToken = default)
     {
-        foreach (var domainEvent in events)
+        using var transaction = await _readDbContext.Database.BeginTransactionAsync(cancellationToken);
+        try
         {
-            switch (domainEvent)
+            foreach (var domainEvent in events)
             {
-                case OrderStarted orderStarted:
-                    await Apply(orderStarted, cancellationToken);
-                    break;
+                var alreadyProcessed = await _readDbContext.ProcessedProjectionEvents
+                        .AnyAsync(x => x.ProjectorName == ProjectorName && x.EventId == domainEvent.EventId, cancellationToken);
 
-                case FoodItemAdded foodItemAdded:
-                    await Apply(foodItemAdded, cancellationToken);
-                    break;
+                if (alreadyProcessed) continue;
 
-                case FoodItemRemoved foodItemRemoved:
-                    await Apply(foodItemRemoved, cancellationToken);
-                    break;
+                await ApplyEvent(domainEvent, cancellationToken);
 
-                case OrderConfirmed orderConfirmed:
-                    await Apply(orderConfirmed, cancellationToken);
-                    break;
+                _readDbContext.ProcessedProjectionEvents.Add(new OrderProjectionProcessedEvent
+                {
+                    Id = Guid.NewGuid(),
+                    ProjectorName = ProjectorName,
+                    EventId = domainEvent.EventId,
+                    ProcessedAtUtc = DateTime.UtcNow
+                });
             }
+
+            await _readDbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
         }
 
-        await _readDbContext.SaveChangesAsync(cancellationToken);
     }
-
-    private async Task Apply(OrderStarted @event, CancellationToken cancellationToken)
+    private async Task ApplyEvent(IDomainEvent domainEvent, CancellationToken cancellationToken)
     {
-        var summary = new OrderSummaryReadModel
+        switch (domainEvent)
         {
-            OrderId = @event.OrderId,
-            TableNumber = @event.TableNumber,
-            Status = "Started",
-            TotalPrice = 0,
-            LastUpdatedAt = @event.OccurredOnUtc
-        };
-
-        await _readDbContext.OrderSummaries.AddAsync(summary, cancellationToken);
+            case OrderStarted e: await Apply(e, cancellationToken); break;
+            case FoodItemAdded e: await Apply(e, cancellationToken); break;
+            case FoodItemRemoved e: await Apply(e, cancellationToken); break;
+            case OrderConfirmed e: await Apply(e, cancellationToken); break;
+        }
     }
-
     private async Task Apply(FoodItemAdded @event, CancellationToken cancellationToken)
     {
         var summary = await _readDbContext.OrderSummaries
@@ -67,18 +69,29 @@ public class OrderProjector : IOrderProjector
             throw new InvalidOperationException("Order summary was not found for projection.");
         }
 
-        summary.Items.Add(new OrderItemReadModel
-        {
-            Id = Guid.NewGuid(),
-            OrderId = @event.OrderId,
-            MenuItemId = @event.MenuItemId,
-            Name = @event.Name,
-            Price = @event.Price
-        });
+        var item = summary.Items.FirstOrDefault(x => x.MenuItemId == @event.MenuItemId);
 
-        summary.TotalPrice += @event.Price;
+        if (item is null)
+        {
+            summary.Items.Add(new OrderItemReadModel
+            {
+                Id = Guid.NewGuid(),
+                OrderId = @event.OrderId,
+                MenuItemId = @event.MenuItemId,
+                Name = @event.Name,
+                Price = @event.Price,
+                Quantity = @event.Quantity
+            });
+        }
+        else
+        {
+            item.Quantity += @event.Quantity;
+        }
+
+        summary.TotalPrice += @event.Price * @event.Quantity;
         summary.LastUpdatedAt = @event.OccurredOnUtc;
     }
+
 
     private async Task Apply(FoodItemRemoved @event, CancellationToken cancellationToken)
     {
@@ -97,12 +110,40 @@ public class OrderProjector : IOrderProjector
             return;
         }
 
-        summary.TotalPrice -= item.Price;
+        var removedQuantity = Math.Min(item.Quantity, @event.Quantity);
+
+        item.Quantity -= removedQuantity;
+        summary.TotalPrice -= item.Price * removedQuantity;
         summary.LastUpdatedAt = @event.OccurredOnUtc;
 
-        _readDbContext.OrderItems.Remove(item);
+        if (item.Quantity == 0)
+        {
+            _readDbContext.OrderItems.Remove(item);
+        }
     }
 
+
+    private async Task Apply(OrderStarted @event, CancellationToken cancellationToken)
+    {
+        var exists = await _readDbContext.OrderSummaries
+            .AnyAsync(x => x.OrderId == @event.OrderId, cancellationToken);
+
+        if (exists)
+        {
+            return;
+        }
+
+        var summary = new OrderSummaryReadModel
+        {
+            OrderId = @event.OrderId,
+            TableNumber = @event.TableNumber,
+            Status = "Started",
+            TotalPrice = 0,
+            LastUpdatedAt = @event.OccurredOnUtc
+        };
+
+        await _readDbContext.OrderSummaries.AddAsync(summary, cancellationToken);
+    }
     private async Task Apply(OrderConfirmed @event, CancellationToken cancellationToken)
     {
         var summary = await _readDbContext.OrderSummaries
@@ -113,7 +154,14 @@ public class OrderProjector : IOrderProjector
             throw new InvalidOperationException("Order summary was not found for projection.");
         }
 
+        if (summary.Status == "Confirmed")
+        {
+            summary.LastUpdatedAt = @event.OccurredOnUtc;
+            return;
+        }
+
         summary.Status = "Confirmed";
         summary.LastUpdatedAt = @event.OccurredOnUtc;
     }
+
 }

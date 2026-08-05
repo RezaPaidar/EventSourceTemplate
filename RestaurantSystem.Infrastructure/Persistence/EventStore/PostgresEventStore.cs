@@ -1,129 +1,120 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using RestaurantSystem.Domain.Core;
-using System.Text.Json;
 using RestaurantSystem.Infrastructure.Persistence.EventStore.Models;
-using IEventStore = RestaurantSystem.Application.Abstractions.Persistence.IEventStore;
-using RestaurantSystem.Domain.Aggregates.Order.Events;
-
-
 
 namespace RestaurantSystem.Infrastructure.Persistence.EventStore;
-// Event store implementation for loading aggregate history and saving new events atomically.
+
 public sealed class PostgresEventStore : IEventStore
 {
-    private readonly EventStoreDbContext _dbContext;
-    private readonly JsonSerializerOptions _jsonSerializerOptions;
-
-    private static readonly Dictionary<string, Type> EventTypeMap = new()
+    private static readonly JsonSerializerOptions SerializerOptions = new()
     {
-        { typeof(FoodItemAdded).Name, typeof(FoodItemAdded) },
-        { typeof(OrderConfirmed).Name, typeof(OrderConfirmed) }
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        WriteIndented = false
     };
 
-    public PostgresEventStore(EventStoreDbContext dbContext, JsonSerializerOptions jsonSerializerOptions)
+    private readonly EventStoreDbContext _dbContext;
+
+    public PostgresEventStore(EventStoreDbContext dbContext)
     {
         _dbContext = dbContext;
-        _jsonSerializerOptions = jsonSerializerOptions;
     }
 
-    public async Task SaveEventsAsync(
+    public async Task<IReadOnlyList<EventEnvelope>> LoadAsync(
         Guid aggregateId,
         string aggregateType,
-        IReadOnlyCollection<IDomainEvent> events,
-        int expectedVersion,
-        CancellationToken cancellationToken = default)
-    {
-        if (events.Count == 0)
-            return;
-
-        var currentVersion = await _dbContext.StoredEvents
-            .Where(x => x.AggregateId == aggregateId)
-            .Select(x => (int?)x.Version)
-            .MaxAsync(cancellationToken) ?? 0;
-
-        if (currentVersion != expectedVersion)
-            throw new InvalidOperationException(
-                $"Concurrency conflict for aggregate '{aggregateId}'. Expected version {expectedVersion}, but current version is {currentVersion}.");
-
-        var version = expectedVersion;
-
-        foreach (var domainEvent in events)
-        {
-            version++;
-
-            var serializedPayload = JsonSerializer.Serialize(
-                domainEvent,
-                domainEvent.GetType(),
-                _jsonSerializerOptions);
-
-            var storedEvent = new StoredEvent
-            {
-                EventId = domainEvent.EventId,
-                AggregateId = aggregateId,
-                AggregateType = aggregateType,
-                Version = version,
-                EventType = domainEvent.GetType().Name,
-                Data = serializedPayload,
-                Metadata = "{}",
-                CreatedAt = domainEvent.OccurredOnUtc
-            };
-
-            _dbContext.StoredEvents.Add(storedEvent);
-
-            var outboxMessage = new OutboxMessage
-            {
-                Id = Guid.NewGuid(),
-                OccurredOnUtc = domainEvent.OccurredOnUtc,
-                Type = GetOutboxType(domainEvent),
-                Payload = serializedPayload
-            };
-
-            _dbContext.OutboxMessages.Add(outboxMessage);
-        }
-        await _dbContext.SaveChangesAsync(cancellationToken);
-    }
-    private static readonly Dictionary<Type, string> OutboxTypeMap = new()
-    {
-        { typeof(FoodItemAdded), "order.food-item-added.v1" },
-    };
-    private string GetOutboxType(IDomainEvent domainEvent)
-    {
-        if (OutboxTypeMap.TryGetValue(domainEvent.GetType(), out var outboxType))
-        {
-            return outboxType;
-        }
-        // اگر نیاز به Publish نیست، یا یک Type پیش‌فرض بده، یا خطا
-        return domainEvent.GetType().Name;
-    }
-    public async Task<IReadOnlyList<IDomainEvent>> LoadEventsAsync(
-        Guid aggregateId,
         CancellationToken cancellationToken = default)
     {
         var storedEvents = await _dbContext.StoredEvents
-            .Where(x => x.AggregateId == aggregateId)
-            .OrderBy(x => x.Version)
+            .Where(e => e.AggregateId == aggregateId && e.AggregateType == aggregateType)
+            .OrderBy(e => e.Version)
             .ToListAsync(cancellationToken);
 
-        var domainEvents = new List<IDomainEvent>(storedEvents.Count);
+        var result = new List<EventEnvelope>(storedEvents.Count);
 
-        foreach (var storedEvent in storedEvents)
+        foreach (var stored in storedEvents)
         {
-            if (!EventTypeMap.TryGetValue(storedEvent.EventType, out var eventType))
-                throw new InvalidOperationException(
-                    $"Unknown event type '{storedEvent.EventType}' for aggregate '{aggregateId}'.");
+            var eventType = Type.GetType(stored.EventType, throwOnError: true)!;
 
-            var domainEvent = JsonSerializer.Deserialize(
-                storedEvent.Data,
+            if (!typeof(IEventSourcedEvent).IsAssignableFrom(eventType))
+                throw new InvalidOperationException(
+                    $"Stored event type '{stored.EventType}' does not implement IEventSourcedEvent.");
+
+            var domainEvent = (IEventSourcedEvent)JsonSerializer.Deserialize(
+                stored.Data,
                 eventType,
-                _jsonSerializerOptions) as IDomainEvent;
+                SerializerOptions)!;
 
-            if (domainEvent is null)
-                throw new InvalidOperationException(
-                    $"Failed to deserialize event '{storedEvent.EventType}' for aggregate '{aggregateId}'.");
+            var envelope = new EventEnvelope
+            {
+                EventId = stored.EventId,
+                AggregateId = stored.AggregateId,
+                AggregateType = stored.AggregateType,
+                AggregateVersion = stored.Version,
+                EventType = stored.EventType,
+                Event = domainEvent,
+                OccurredOnUtc = stored.CreatedAt,
+                StreamPosition = stored.Version
+            };
 
-            domainEvents.Add(domainEvent);
+            result.Add(envelope);
         }
 
-        return domainEvents;
+        return result;
+    }
+
+    public async Task AppendAsync(
+        Guid aggregateId,
+        string aggregateType,
+        IReadOnlyList<EventEnvelope> events,
+        int expectedStreamPosition,
+        CancellationToken cancellationToken = default)
+    {
+        int currentStreamPosition = await _dbContext.StoredEvents
+            .Where(e => e.AggregateId == aggregateId && e.AggregateType == aggregateType)
+            .Select(e => (int?)e.Version)
+            .MaxAsync(cancellationToken) ?? -1;
+
+        if (currentStreamPosition != expectedStreamPosition)
+        {
+            throw new ConcurrencyException(
+                $"Expected stream position {expectedStreamPosition} but was {currentStreamPosition}.");
+        }
+
+        var nextVersion = currentStreamPosition + 1;
+
+        foreach (var envelope in events)
+        {
+            var eventType = envelope.Event.GetType();
+
+            var data = JsonSerializer.Serialize(envelope.Event, eventType, SerializerOptions);
+            var metadata = JsonSerializer.Serialize(new
+            {
+                envelope.EventId,
+                envelope.AggregateId,
+                envelope.AggregateType,
+                envelope.AggregateVersion,
+                envelope.EventType,
+                envelope.OccurredOnUtc
+            }, SerializerOptions);
+
+            var stored = new StoredEvent
+            {
+                EventId = envelope.EventId,
+                AggregateId = aggregateId,
+                AggregateType = aggregateType,
+                EventType = eventType.AssemblyQualifiedName!,
+                Version = nextVersion,
+                Data = data,
+                Metadata = metadata,
+                CreatedAt = envelope.OccurredOnUtc
+            };
+
+            nextVersion++;
+
+            await _dbContext.StoredEvents.AddAsync(stored, cancellationToken);
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
     }
 }
