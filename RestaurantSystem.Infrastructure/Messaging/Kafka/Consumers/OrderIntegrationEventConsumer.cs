@@ -61,7 +61,11 @@ public class OrderIntegrationEventConsumer : BackgroundService
                 }
 
                 if (await dbContext.InboxMessages.FindAsync(new object[] { messageId }, stoppingToken) is not null)
+                {
+                    _consumer.Commit(result);
                     continue;
+                }
+
 
                 await dispatcher.DispatchAsync(
                     messageType,

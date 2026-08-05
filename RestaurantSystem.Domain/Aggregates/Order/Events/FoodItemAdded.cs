@@ -11,6 +11,5 @@ public sealed record FoodItemAdded : IEventSourcedEvent
     public decimal Price { get; init; }
     public int Quantity { get; init; }
     public DateTime OccurredOnUtc { get; init; }
-
     public int EventVersion => 1;
 }

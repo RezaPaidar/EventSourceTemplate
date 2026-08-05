@@ -5,34 +5,33 @@ using RestaurantSystem.Domain.Aggregates.Order.Events;
 
 namespace RestaurantSystem.Application.Orders.IntegrationEvents;
 
-public sealed class FoodItemAddedIntegrationEventHandler
-    : IIntegrationEventHandler<FoodItemAddedIntegrationEventV1>
+public sealed class FoodItemRemovedIntegrationEventHandler
+    : IIntegrationEventHandler<FoodItemRemovedIntegrationEventV1>
 {
-    private readonly ILogger<FoodItemAddedIntegrationEventHandler> _logger;
     private readonly IOrderProjector _orderProjector;
+    private readonly ILogger<FoodItemRemovedIntegrationEventHandler> _logger;
 
-    public FoodItemAddedIntegrationEventHandler(
+    public FoodItemRemovedIntegrationEventHandler(
         IOrderProjector orderProjector,
-        ILogger<FoodItemAddedIntegrationEventHandler> logger)
+        ILogger<FoodItemRemovedIntegrationEventHandler> logger)
     {
         _orderProjector = orderProjector;
         _logger = logger;
     }
 
     public async Task HandleAsync(
-    FoodItemAddedIntegrationEventV1 integrationEvent,
-    CancellationToken cancellationToken = default)
+        FoodItemRemovedIntegrationEventV1 integrationEvent,
+        CancellationToken cancellationToken = default)
     {
-        var domainEvent = new FoodItemAdded
+        var domainEvent = new FoodItemRemoved
         {
             EventId = integrationEvent.EventId,
             OrderId = integrationEvent.OrderId,
             MenuItemId = integrationEvent.MenuItemId,
-            Name = integrationEvent.Name,
-            Price = integrationEvent.Price,
             Quantity = integrationEvent.Quantity,
             OccurredOnUtc = integrationEvent.OccurredOnUtc
         };
+
         await _orderProjector.ProjectAsync(new[] { domainEvent }, cancellationToken);
     }
 }

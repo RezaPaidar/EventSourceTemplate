@@ -10,16 +10,17 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
+        var assembly = typeof(DependencyInjection).Assembly;
+
         services.AddMediatR(cfg =>
         {
-            cfg.RegisterServicesFromAssembly(typeof(DependencyInjection).Assembly);
+            cfg.RegisterServicesFromAssembly(assembly);
         });
 
-        services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
+        services.AddValidatorsFromAssembly(assembly);
 
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
 
-        var assembly = typeof(DependencyInjection).Assembly;
         var handlerInterface = typeof(IIntegrationEventHandler<>);
 
         var handlers = assembly.GetTypes()
@@ -29,8 +30,6 @@ public static class DependencyInjection
 
         foreach (var handler in handlers)
         {
-            Console.WriteLine(
-        $"{handler.Implementation.FullName} -> {handler.Interface.FullName} ");
             services.AddScoped(handler.Interface, handler.Implementation);
         }
 
