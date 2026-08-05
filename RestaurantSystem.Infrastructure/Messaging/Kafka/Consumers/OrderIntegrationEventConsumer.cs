@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RestaurantSystem.Application.Abstractions.Messaging;
 using RestaurantSystem.Infrastructure.Persistence.EventStore;
 using RestaurantSystem.Infrastructure.Persistence.EventStore.Models;
 using System.Text;

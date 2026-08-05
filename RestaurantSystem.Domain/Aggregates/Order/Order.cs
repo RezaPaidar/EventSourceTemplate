@@ -58,8 +58,15 @@ public sealed class Order : AggregateRoot
         if (_isConfirmed)
             throw new InvalidOperationException("Cannot remove items from a confirmed order.");
 
-        if (_items.All(x => x.MenuItemId != menuItemId))
+        if (quantity <= 0)
+            throw new InvalidOperationException("Quantity must be greater than zero.");
+
+        var existingItem = _items.FirstOrDefault(x => x.MenuItemId == menuItemId);
+        if (existingItem is null)
             throw new InvalidOperationException("Item not found in order.");
+
+        if (quantity > existingItem.Quantity)
+            throw new InvalidOperationException("Cannot remove more quantity than exists in the order.");
 
         var @event = new FoodItemRemoved
         {
@@ -72,6 +79,7 @@ public sealed class Order : AggregateRoot
 
         RaiseEvent(@event);
     }
+
 
     public void Confirm(DateTime occurredOnUtc)
     {
@@ -124,14 +132,23 @@ public sealed class Order : AggregateRoot
     }
     private void Apply(FoodItemAdded e)
     {
-        _items.Add(new OrderItem(e.MenuItemId, e.Name, e.Price));
+        _items.Add(new OrderItem(e.MenuItemId, e.Name, e.Price, e.Quantity));
     }
 
     private void Apply(FoodItemRemoved e)
     {
-        var item = _items.FirstOrDefault(x => x.MenuItemId == e.MenuItemId);
-        if (item is not null)
-            _items.Remove(item);
+        var existingItem = _items.FirstOrDefault(x => x.MenuItemId == e.MenuItemId);
+        if (existingItem is null)
+            return;
+
+        var remainingQuantity = existingItem.Quantity - e.Quantity;
+
+        _items.Remove(existingItem);
+
+        if (remainingQuantity > 0)
+        {
+            _items.Add(existingItem with { Quantity = remainingQuantity });
+        }
     }
 
     private void Apply(OrderConfirmed e)
@@ -147,4 +164,5 @@ public sealed class Order : AggregateRoot
     }
 }
 
-public record OrderItem(Guid MenuItemId, string Name, decimal Price);
+public record OrderItem(Guid MenuItemId, string Name, decimal Price, int Quantity);
+
