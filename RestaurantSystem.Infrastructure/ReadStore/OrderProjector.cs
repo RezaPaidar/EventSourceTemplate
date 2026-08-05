@@ -1,9 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using RestaurantSystem.Application.Abstractions.Projections;
+using RestaurantSystem.Domain.Aggregates.Order.Events;
 using RestaurantSystem.Domain.Core;
-using RestaurantSystem.Domain.Events;
-using RestaurantSystem.Domain.Events.FoodItem;
-using RestaurantSystem.Domain.Events.Order;
 using RestaurantSystem.Infrastructure.ReadStore.Models;
 
 namespace RestaurantSystem.Infrastructure.ReadStore;
@@ -37,14 +35,6 @@ public class OrderProjector : IOrderProjector
 
                 case OrderConfirmed orderConfirmed:
                     await Apply(orderConfirmed, cancellationToken);
-                    break;
-
-                case OrderPrepared orderPrepared:
-                    await Apply(orderPrepared, cancellationToken);
-                    break;
-
-                case OrderDelivered orderDelivered:
-                    await Apply(orderDelivered, cancellationToken);
                     break;
             }
         }
@@ -124,34 +114,6 @@ public class OrderProjector : IOrderProjector
         }
 
         summary.Status = "Confirmed";
-        summary.LastUpdatedAt = @event.OccurredOnUtc;
-    }
-
-    private async Task Apply(OrderPrepared @event, CancellationToken cancellationToken)
-    {
-        var summary = await _readDbContext.OrderSummaries
-            .FirstOrDefaultAsync(x => x.OrderId == @event.OrderId, cancellationToken);
-
-        if (summary is null)
-        {
-            throw new InvalidOperationException("Order summary was not found for projection.");
-        }
-
-        summary.Status = "Prepared";
-        summary.LastUpdatedAt = @event.OccurredOnUtc;
-    }
-
-    private async Task Apply(OrderDelivered @event, CancellationToken cancellationToken)
-    {
-        var summary = await _readDbContext.OrderSummaries
-            .FirstOrDefaultAsync(x => x.OrderId == @event.OrderId, cancellationToken);
-
-        if (summary is null)
-        {
-            throw new InvalidOperationException("Order summary was not found for projection.");
-        }
-
-        summary.Status = "Delivered";
         summary.LastUpdatedAt = @event.OccurredOnUtc;
     }
 }

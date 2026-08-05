@@ -2,17 +2,23 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using RestaurantSystem.Infrastructure.ReadStore;
 
+#nullable disable
+
 namespace RestaurantSystem.Infrastructure.Migrations
 {
     [DbContext(typeof(ReadDbContext))]
-    partial class ReadDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260802085512_InitReadStore")]
+    partial class InitReadStore
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
+#pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("ProductVersion", "10.0.0")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
@@ -46,7 +52,7 @@ namespace RestaurantSystem.Infrastructure.Migrations
 
                     b.HasIndex("OrderId", "MenuItemId");
 
-                    b.ToTable("order_items", "ReadStore");
+                    b.ToTable("order_items", (string)null);
                 });
 
             modelBuilder.Entity("RestaurantSystem.Infrastructure.ReadStore.Models.OrderSummaryReadModel", b =>
@@ -71,7 +77,7 @@ namespace RestaurantSystem.Infrastructure.Migrations
 
                     b.HasKey("OrderId");
 
-                    b.ToTable("order_summaries", "ReadStore");
+                    b.ToTable("order_summaries", (string)null);
                 });
 
             modelBuilder.Entity("RestaurantSystem.Infrastructure.ReadStore.Models.OrderItemReadModel", b =>
@@ -89,6 +95,7 @@ namespace RestaurantSystem.Infrastructure.Migrations
                 {
                     b.Navigation("Items");
                 });
+#pragma warning restore 612, 618
         }
     }
 }
