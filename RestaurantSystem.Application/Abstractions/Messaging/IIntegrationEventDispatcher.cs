@@ -1,8 +1,7 @@
-namespace RestaurantSystem.Infrastructure.Messaging.Kafka;
+namespace RestaurantSystem.Application.Abstractions.Messaging;
 
 public interface IIntegrationEventDispatcher
 {
-    // Inputs are raw Kafka payload details
     Task DispatchAsync(
         string messageType,
         string key,
