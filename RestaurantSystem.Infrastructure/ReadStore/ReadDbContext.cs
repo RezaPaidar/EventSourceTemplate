@@ -11,9 +11,15 @@ public class ReadDbContext : DbContext
 
     public DbSet<OrderSummaryReadModel> OrderSummaries => Set<OrderSummaryReadModel>();
     public DbSet<OrderItemReadModel> OrderItems => Set<OrderItemReadModel>();
+    public DbSet<OrderProjectionProcessedEvent> ProcessedProjectionEvents => Set<OrderProjectionProcessedEvent>();
+    public DbSet<OrderProjectionCheckpoint> ProjectionCheckpoints => Set<OrderProjectionCheckpoint>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.ApplyConfigurationsFromAssembly(
+                typeof(ReadDbContext).Assembly,
+                type => type.Namespace != null && type.Namespace.Contains("ReadStore.Configurations"));
+
         modelBuilder.Entity<OrderSummaryReadModel>(entity =>
         {
             entity.ToTable("order_summaries", "ReadStore");

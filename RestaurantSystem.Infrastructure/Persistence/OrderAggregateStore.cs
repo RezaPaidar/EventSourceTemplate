@@ -1,33 +1,81 @@
-
-using RestaurantSystem.Application.Abstractions.Persistence;
-using RestaurantSystem.Application.Abstractions.Projections;
+using RestaurantSystem.Application.Abstractions.Orders;
 using RestaurantSystem.Domain.Aggregates.Order;
+using RestaurantSystem.Domain.Core;
 
-namespace RestaurantSystem.Infrastructure.Persistence;
+namespace RestaurantSystem.Infrastructure.Persistence.Projections;
 
-public class OrderAggregateStore(IEventStore eventStore, IOrderProjector projector) : IAggregateStore<Order>
+public sealed class OrderAggregateStore : IOrderAggregateStore
 {
-    public async Task SaveAsync(Order aggregate, CancellationToken ct = default)
+    private readonly IEventStore _eventStore;
+
+    public OrderAggregateStore(IEventStore eventStore)
     {
-        var events = aggregate.GetUncommittedEvents().ToList();
-        if (!events.Count.Equals(0))
+        _eventStore = eventStore;
+    }
+
+    public async Task<Order?> LoadAsync(
+        Guid orderId,
+        CancellationToken cancellationToken = default)
+    {
+        var envelopes = await _eventStore.LoadAsync(
+            orderId,
+            aggregateType: typeof(Order).FullName!,
+            cancellationToken);
+
+        if (envelopes.Count == 0)
+            return null;
+
+        var history = envelopes
+            .OrderBy(e => e.StreamPosition)
+            .Select(e => e.Event)
+            .ToList()
+            .AsReadOnly();
+
+        var order = Order.LoadFromHistory(orderId, history);
+        return order;
+    }
+
+    public async Task SaveAsync(
+        Order order,
+        CancellationToken cancellationToken = default)
+    {
+        var uncommitted = order.UncommittedEvents.ToList();
+        if (uncommitted.Count == 0)
+            return;
+
+        var expectedStreamPosition = order.Version - uncommitted.Count;
+
+        var envelopes = new List<EventEnvelope>(uncommitted.Count);
+        var aggregateType = typeof(Order).FullName!;
+        var aggregateId = order.Id;
+
+        var nextStreamPosition = expectedStreamPosition + 1;
+
+        foreach (var domainEvent in uncommitted)
         {
-            await eventStore.SaveEventsAsync(
-                aggregate.Id,
-                nameof(Order),
-                events,
-                aggregate.Version,
-                ct);
+            var envelope = new EventEnvelope
+            {
+                EventId = domainEvent.EventId,
+                AggregateId = aggregateId,
+                AggregateType = aggregateType,
+                AggregateVersion = order.Version,
+                EventType = domainEvent.GetType().AssemblyQualifiedName!,
+                Event = domainEvent,
+                OccurredOnUtc = domainEvent.OccurredOnUtc,
+                StreamPosition = nextStreamPosition
+            };
 
-            await projector.ProjectAsync(events, ct);
-
-            aggregate.ClearUncommittedEvents();
+            nextStreamPosition++;
+            envelopes.Add(envelope);
         }
-    }
-    public async Task<Order> LoadAsync(Guid id, CancellationToken ct = default)
-    {
-        var events = await eventStore.LoadEventsAsync(id, ct);
-        return Order.LoadFromHistory(id, events.ToList());
-    }
 
+        await _eventStore.AppendAsync(
+            aggregateId,
+            aggregateType,
+            envelopes,
+            expectedStreamPosition,
+            cancellationToken);
+
+        order.ClearUncommittedEvents();
+    }
 }

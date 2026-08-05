@@ -1,32 +1,29 @@
-﻿using MediatR;
+using MediatR;
 using RestaurantSystem.Application.Abstractions.Orders;
-using RestaurantSystem.Domain.Aggregates.Order;
 
 namespace RestaurantSystem.Application.Orders.Commands;
 
-public sealed class AddFoodItemHandler : IRequestHandler<AddFoodItemCommand>
+public sealed class ConfirmOrderHandler : IRequestHandler<ConfirmOrderCommand>
 {
     private readonly IOrderAggregateStore _orderAggregateStore;
 
-    public AddFoodItemHandler(IOrderAggregateStore orderAggregateStore)
+    public ConfirmOrderHandler(IOrderAggregateStore orderAggregateStore)
     {
         _orderAggregateStore = orderAggregateStore;
     }
 
-    public async Task Handle(AddFoodItemCommand command, CancellationToken ct)
+    public async Task Handle(ConfirmOrderCommand command, CancellationToken ct)
     {
         // 1. Load & Rehydrate
         var order = await _orderAggregateStore.LoadAsync(command.OrderId, ct);
         if (order is null)
-        {
             throw new InvalidOperationException($"Order '{command.OrderId}' not found.");
-        }
 
-        // 2. Execute Domain Logic
+        // 2. Domain Logic
         var occurredOnUtc = DateTime.UtcNow;
-        order.AddItem(command.MenuItemId, command.Name, command.Price, command.Quantity, occurredOnUtc);
+        order.Confirm(occurredOnUtc);
 
-        // 3. Persist (EventStore append + Projections + ClearEvents)
+        // 3. Persist
         await _orderAggregateStore.SaveAsync(order, ct);
     }
 }

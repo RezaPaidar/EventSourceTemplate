@@ -3,14 +3,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using RestaurantSystem.Application.Abstractions.Messaging;
+using RestaurantSystem.Application.Abstractions.Orders;
 using RestaurantSystem.Application.Abstractions.Persistence;
 using RestaurantSystem.Application.Abstractions.Projections;
-using RestaurantSystem.Domain.Aggregates.Order;
 using RestaurantSystem.Infrastructure.Messaging.Kafka;
 using RestaurantSystem.Infrastructure.Messaging.Kafka.Consumers;
 using RestaurantSystem.Infrastructure.Messaging.Outbox;
-using RestaurantSystem.Infrastructure.Persistence;
 using RestaurantSystem.Infrastructure.Persistence.EventStore;
+using RestaurantSystem.Infrastructure.Persistence.Projections;
 using RestaurantSystem.Infrastructure.ReadStore;
 using RestaurantSystem.Infrastructure.Serialization;
 
@@ -32,7 +32,7 @@ public static class DependencyInjection
             options.UseNpgsql(connectionString, o =>
                 o.MigrationsHistoryTable("__EFMigrationsHistory_Read", "ReadStore")));
 
-        services.AddScoped<IEventStore, PostgresEventStore>();
+        services.AddScoped<RestaurantSystem.Domain.Core.IEventStore, PostgresEventStore>();
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<EventStoreDbContext>());
 
         services.AddSingleton(new System.Text.Json.JsonSerializerOptions
@@ -44,7 +44,8 @@ public static class DependencyInjection
         services.AddSingleton<ISerializer, EventSerializer>();
 
         services.AddScoped<IOrderProjector, RestaurantSystem.Infrastructure.Persistence.Projections.OrderProjector>();
-        services.AddScoped<IAggregateStore<Order>, OrderAggregateStore>();
+
+        services.AddScoped<IOrderAggregateStore, OrderAggregateStore>();
 
         services.Configure<OutboxDispatcherOptions>(
             configuration.GetSection(nameof(OutboxDispatcherOptions)));
