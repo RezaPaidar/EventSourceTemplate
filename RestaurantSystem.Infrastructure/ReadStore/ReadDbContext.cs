@@ -16,7 +16,7 @@ public class ReadDbContext : DbContext
     {
         modelBuilder.Entity<OrderSummaryReadModel>(entity =>
         {
-            entity.ToTable("order_summaries");
+            entity.ToTable("order_summaries", "ReadStore");
             entity.HasKey(x => x.OrderId);
 
             entity.Property(x => x.Status).IsRequired().HasMaxLength(50);
@@ -30,7 +30,7 @@ public class ReadDbContext : DbContext
 
         modelBuilder.Entity<OrderItemReadModel>(entity =>
         {
-            entity.ToTable("order_items");
+            entity.ToTable("order_items", "ReadStore");
             entity.HasKey(x => x.Id);
 
             entity.Property(x => x.Name).IsRequired().HasMaxLength(200);

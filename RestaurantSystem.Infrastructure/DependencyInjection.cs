@@ -30,7 +30,7 @@ public static class DependencyInjection
 
         services.AddDbContext<ReadDbContext>(options =>
             options.UseNpgsql(connectionString, o =>
-                o.MigrationsHistoryTable("__EFMigrationsHistory_Read")));
+                o.MigrationsHistoryTable("__EFMigrationsHistory_Read", "ReadStore")));
 
         services.AddScoped<IEventStore, PostgresEventStore>();
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<EventStoreDbContext>());
