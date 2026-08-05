@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using RestaurantSystem.Infrastructure.ReadStore;
@@ -11,9 +12,11 @@ using RestaurantSystem.Infrastructure.ReadStore;
 namespace RestaurantSystem.Infrastructure.Migrations
 {
     [DbContext(typeof(ReadDbContext))]
-    partial class ReadDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260802101536_MoveReadStoreToSchema")]
+    partial class MoveReadStoreToSchema
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -50,59 +53,6 @@ namespace RestaurantSystem.Infrastructure.Migrations
                     b.HasIndex("OrderId", "MenuItemId");
 
                     b.ToTable("order_items", "ReadStore");
-                });
-
-            modelBuilder.Entity("RestaurantSystem.Infrastructure.ReadStore.Models.OrderProjectionCheckpoint", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<long>("LastProcessedVersion")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("ProjectorName")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)");
-
-                    b.Property<DateTime>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ProjectorName")
-                        .IsUnique();
-
-                    b.ToTable("order_projection_checkpoints", "ReadStore");
-                });
-
-            modelBuilder.Entity("RestaurantSystem.Infrastructure.ReadStore.Models.OrderProjectionProcessedEvent", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("EventId")
-                        .HasColumnType("uuid");
-
-                    b.Property<long>("EventVersion")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime>("ProcessedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ProjectorName")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ProjectorName", "EventId")
-                        .IsUnique();
-
-                    b.ToTable("order_projection_processed_events", "ReadStore");
                 });
 
             modelBuilder.Entity("RestaurantSystem.Infrastructure.ReadStore.Models.OrderSummaryReadModel", b =>
