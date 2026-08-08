@@ -1,6 +1,7 @@
 ﻿using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
+using RestaurantSystem.Application.Abstractions.Events;
 using RestaurantSystem.Application.Abstractions.Messaging;
 using RestaurantSystem.Application.Abstractions.Persistence.Behaviors;
 
@@ -23,10 +24,15 @@ public static class DependencyInjection
 
         var handlerInterface = typeof(IIntegrationEventHandler<>);
 
+        var integrationHandlerInterface = typeof(IIntegrationEventHandler<>);
+        var domainHandlerInterface = typeof(IDomainEventHandler<>);
+
         var handlers = assembly.GetTypes()
                 .Where(t => t is { IsClass: true, IsAbstract: false })
                 .SelectMany(t => t.GetInterfaces(), (t, i) => new { Implementation = t, Interface = i })
-                .Where(x => x.Interface.IsGenericType && x.Interface.GetGenericTypeDefinition() == handlerInterface);
+                .Where(x => x.Interface.IsGenericType &&
+                 (x.Interface.GetGenericTypeDefinition() == handlerInterface ||
+                 x.Interface.GetGenericTypeDefinition() == domainHandlerInterface));
 
         foreach (var handler in handlers)
         {

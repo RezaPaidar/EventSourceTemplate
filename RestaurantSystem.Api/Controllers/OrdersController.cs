@@ -1,7 +1,9 @@
 ﻿using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using RestaurantSystem.Api.Contracts.FoodItems;
+using RestaurantSystem.Api.Contracts.Orders;
 using RestaurantSystem.Application.Orders.Commands;
+using RestaurantSystem.Application.Orders.Commands.CorrectOrder;
 
 namespace RestaurantSystem.Api.Controllers;
 
@@ -14,6 +16,22 @@ public sealed class OrdersController : ControllerBase
     public OrdersController(IMediator mediator)
     {
         _mediator = mediator;
+    }
+
+    [HttpPost("start")]
+    public async Task<IActionResult> StartOrder(
+        [FromBody] StartOrderRequest request,
+        CancellationToken ct)
+    {
+        var orderId = Guid.NewGuid();
+
+        var command = new StartOrderCommand(
+            orderId,
+            request.CustomerId);
+
+        await _mediator.Send(command, ct);
+
+        return Accepted(new { OrderId = orderId });
     }
 
     [HttpPost("{orderId:guid}/items")]
@@ -33,5 +51,49 @@ public sealed class OrdersController : ControllerBase
 
         return Accepted();
     }
-}
 
+    [HttpPost("{orderId:guid}/confirm")]
+    public async Task<IActionResult> ConfirmOrder(
+        Guid orderId,
+        CancellationToken ct)
+    {
+        var command = new ConfirmOrderCommand(orderId);
+
+        await _mediator.Send(command, ct);
+
+        return Accepted();
+    }
+
+    [HttpPost("{orderId:guid}/items/remove")]
+    public async Task<IActionResult> RemoveFoodItem(
+        Guid orderId,
+        [FromBody] RemoveFoodItemRequest request,
+        CancellationToken ct)
+    {
+        var command = new RemoveFoodItemCommand(
+            orderId,
+            request.MenuItemId,
+            request.Quantity);
+
+        await _mediator.Send(command, ct);
+
+        return Accepted();
+    }
+
+    [HttpPut("{orderId:guid}/items/{menuItemId:guid}/quantity")]
+    public async Task<IActionResult> CorrectItemQuantity(
+    [FromRoute] Guid orderId,
+    [FromRoute] Guid menuItemId,
+    [FromBody] CorrectOrderRequest request,
+    CancellationToken cancellationToken)
+    {
+        await _mediator.Send(new CorrectOrderCommand(
+            orderId,
+            menuItemId,
+            request.NewQuantity,
+            request.OriginalEventId,
+            request.Reason), cancellationToken);
+
+        return NoContent();
+    }
+}
