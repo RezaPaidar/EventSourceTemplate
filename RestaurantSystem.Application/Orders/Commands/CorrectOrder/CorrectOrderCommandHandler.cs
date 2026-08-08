@@ -1,4 +1,5 @@
 using MediatR;
+using RestaurantSystem.Application.Abstractions.Orders;
 using RestaurantSystem.Application.Abstractions.Persistence;
 using RestaurantSystem.Domain.Aggregates.Order;
 
@@ -6,16 +7,22 @@ namespace RestaurantSystem.Application.Orders.Commands.CorrectOrder;
 
 public sealed class CorrectOrderCommandHandler : IRequestHandler<CorrectOrderCommand>
 {
-    private readonly IAggregateStore<Order> _aggregateStore;
+    private readonly IOrderAggregateStore _orderAggregateStore;
 
-    public CorrectOrderCommandHandler(IAggregateStore<Order> aggregateStore)
+    public CorrectOrderCommandHandler(IOrderAggregateStore orderAggregateStore /* other deps */)
     {
-        _aggregateStore = aggregateStore;
+        _orderAggregateStore = orderAggregateStore;
     }
 
     public async Task Handle(CorrectOrderCommand request, CancellationToken cancellationToken)
     {
-        var order = await _aggregateStore.LoadAsync(request.OrderId, cancellationToken);
+        var order = await _orderAggregateStore.LoadAsync(request.OrderId, cancellationToken);
+
+        if (order is null)
+        {
+            // Fail fast if aggregate does not exist
+            throw new InvalidOperationException("Order aggregate was not found.");
+        }
 
         order.CorrectItemQuantity(
             request.MenuItemId,
@@ -23,6 +30,6 @@ public sealed class CorrectOrderCommandHandler : IRequestHandler<CorrectOrderCom
             request.OriginalEventId,
             request.Reason);
 
-        await _aggregateStore.SaveAsync(order, cancellationToken);
+        await _orderAggregateStore.SaveAsync(order, cancellationToken);
     }
 }
