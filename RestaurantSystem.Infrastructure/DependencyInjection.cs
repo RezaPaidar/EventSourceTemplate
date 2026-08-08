@@ -9,6 +9,7 @@ using RestaurantSystem.Application.Abstractions.Notifications;
 using RestaurantSystem.Application.Abstractions.Orders;
 using RestaurantSystem.Application.Abstractions.Persistence;
 using RestaurantSystem.Application.Abstractions.Projections;
+using RestaurantSystem.Application.Orders.Queries.GetOrderById;
 using RestaurantSystem.Infrastructure.Events;
 using RestaurantSystem.Infrastructure.Messaging.Kafka;
 using RestaurantSystem.Infrastructure.Messaging.Kafka.Consumers;
@@ -69,6 +70,9 @@ public static class DependencyInjection
         services.AddScoped<IKitchenOrderNotifier, KitchenOrderNotifier>();
 
         services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
+
+        services.AddScoped<IOrderReadStore, OrderReadStore>();
+
 
         services.AddSingleton<IConsumer<string, string>>(sp =>
         {
