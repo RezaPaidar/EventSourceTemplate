@@ -4,6 +4,7 @@ using RestaurantSystem.Api.Contracts.FoodItems;
 using RestaurantSystem.Api.Contracts.Orders;
 using RestaurantSystem.Application.Orders.Commands;
 using RestaurantSystem.Application.Orders.Commands.CorrectOrder;
+using RestaurantSystem.Application.Orders.Queries.GetOrderById;
 
 namespace RestaurantSystem.Api.Controllers;
 
@@ -95,5 +96,14 @@ public sealed class OrdersController : ControllerBase
             request.Reason), cancellationToken);
 
         return NoContent();
+    }
+
+    [HttpGet("{orderId:guid}")]
+    public async Task<IActionResult> GetById(
+       Guid orderId,
+       CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new GetOrderByIdQuery(orderId), cancellationToken);
+        return result is null ? NotFound() : Ok(result);
     }
 }

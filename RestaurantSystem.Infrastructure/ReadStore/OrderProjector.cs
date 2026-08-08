@@ -91,8 +91,6 @@ public class OrderProjector : IOrderProjector
         summary.TotalPrice += @event.Price * @event.Quantity;
         summary.LastUpdatedAt = @event.OccurredOnUtc;
     }
-
-
     private async Task Apply(FoodItemRemoved @event, CancellationToken cancellationToken)
     {
         var summary = await _readDbContext.OrderSummaries
@@ -121,7 +119,6 @@ public class OrderProjector : IOrderProjector
             _readDbContext.OrderItems.Remove(item);
         }
     }
-
 
     private async Task Apply(OrderStarted @event, CancellationToken cancellationToken)
     {

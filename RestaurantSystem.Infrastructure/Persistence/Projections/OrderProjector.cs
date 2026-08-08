@@ -81,6 +81,29 @@ public class OrderProjector(ReadDbContext dbContext) : IOrderProjector
         var summary = await _dbContext.OrderSummaries.FindAsync([e.OrderId], ct);
         if (summary != null) summary.Status = "Confirmed";
     }
+    private async Task ApplyOrderItemQuantityCorrected(OrderItemQuantityCorrected e, CancellationToken ct)
+    {
+        var item = await _dbContext.OrderItems
+            .FirstOrDefaultAsync(x => x.OrderId == e.OrderId && x.MenuItemId == e.MenuItemId, ct);
+
+        if (item is null)
+            return;
+
+        var summary = await _dbContext.OrderSummaries
+            .FirstOrDefaultAsync(x => x.OrderId == e.OrderId, ct);
+
+        var oldQuantity = item.Quantity;
+        var quantityDiff = e.NewQuantity - oldQuantity;
+
+        item.Quantity = e.NewQuantity;
+
+        if (summary is not null)
+        {
+            summary.TotalPrice += (item.Price * quantityDiff);
+            summary.LastUpdatedAt = e.OccurredOnUtc;
+        }
+    }
+
     public async Task ProjectAsync(IEnumerable<IDomainEvent> events, CancellationToken cancellationToken = default)
     {
         foreach (var @event in events)
@@ -91,6 +114,9 @@ public class OrderProjector(ReadDbContext dbContext) : IOrderProjector
                 case FoodItemAdded e: await ApplyFoodItemAdded(e, cancellationToken); break;
                 case FoodItemRemoved e: await ApplyFoodItemRemoved(e, cancellationToken); break;
                 case OrderConfirmed e: await ApplyOrderConfirmed(e, cancellationToken); break;
+                case OrderItemQuantityCorrected e:
+                    await ApplyOrderItemQuantityCorrected(e, cancellationToken);
+                    break;
             }
         }
 
