@@ -8,10 +8,12 @@ public sealed class Order : AggregateRoot
     private bool _isConfirmed;
     private readonly List<OrderItem> _items = new();
 
+    // Domain Event Lists
+    private readonly List<IDomainEvent> _domainEvents = new();
+    public IReadOnlyCollection<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();
+
     public int TableNumber { get; private set; }
-
     private Order() { }
-
     public static Order Start(Guid orderId, int tableNumber, DateTime occurredOnUtc)
     {
         var order = new Order();
@@ -27,7 +29,6 @@ public sealed class Order : AggregateRoot
         order.RaiseEvent(@event);
         return order;
     }
-
     public void AddItem(Guid menuItemId, string name, decimal price, int quantity, DateTime occurredOnUtc)
     {
         if (_isConfirmed)
@@ -52,7 +53,6 @@ public sealed class Order : AggregateRoot
 
         RaiseEvent(@event);
     }
-
     public void RemoveItem(Guid menuItemId, int quantity, DateTime occurredOnUtc)
     {
         if (_isConfirmed)
@@ -79,8 +79,6 @@ public sealed class Order : AggregateRoot
 
         RaiseEvent(@event);
     }
-
-
     public void Confirm(DateTime occurredOnUtc)
     {
         if (_isConfirmed)
@@ -97,7 +95,48 @@ public sealed class Order : AggregateRoot
         };
 
         RaiseEvent(@event);
+
+        //DomainEvent
+        AddDomainEvent(new OrderConfirmedDomainEvent(Id));
     }
+    public void CorrectItemQuantity(Guid menuItemId, int newQuantity, Guid originalEventId,
+    string reason)
+    {
+        if (newQuantity <= 0)
+        {
+            throw new InvalidOperationException("Corrected quantity must be greater than zero.");
+        }
+
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            throw new InvalidOperationException("Correction reason is required.");
+        }
+
+        var item = _items.SingleOrDefault(x => x.MenuItemId == menuItemId);
+
+        if (item is null)
+        {
+            throw new InvalidOperationException("Order item was not found.");
+        }
+
+        if (item.Quantity == newQuantity)
+        {
+            throw new InvalidOperationException("Corrected quantity must be different from current quantity.");
+        }
+
+        RaiseEvent(new OrderItemQuantityCorrected(
+            Guid.NewGuid(),
+            Id,
+            menuItemId,
+            newQuantity,
+            originalEventId,
+            reason,
+            DateTime.UtcNow));
+    }
+    private void AddDomainEvent(IDomainEvent domainEvent)
+            => _domainEvents.Add(domainEvent);
+    public void ClearDomainEvents()
+            => _domainEvents.Clear();
 
     protected override void When(IEventSourcedEvent @event)
     {
@@ -119,6 +158,10 @@ public sealed class Order : AggregateRoot
                 Apply(e);
                 break;
 
+            case OrderItemQuantityCorrected e:
+                Apply(e);
+                break;
+
             default:
                 throw new InvalidOperationException($"Unsupported event type: {@event.GetType().Name}");
         }
@@ -134,7 +177,6 @@ public sealed class Order : AggregateRoot
     {
         _items.Add(new OrderItem(e.MenuItemId, e.Name, e.Price, e.Quantity));
     }
-
     private void Apply(FoodItemRemoved e)
     {
         var existingItem = _items.FirstOrDefault(x => x.MenuItemId == e.MenuItemId);
@@ -150,10 +192,16 @@ public sealed class Order : AggregateRoot
             _items.Add(existingItem with { Quantity = remainingQuantity });
         }
     }
-
     private void Apply(OrderConfirmed e)
     {
         _isConfirmed = true;
+    }
+    private void Apply(OrderItemQuantityCorrected @event)
+    {
+        var item = _items.Single(x => x.MenuItemId == @event.MenuItemId);
+        var updatedItem = item with { Quantity = @event.NewQuantity };
+        _items.Remove(item);
+        _items.Add(updatedItem);
     }
     public static Order LoadFromHistory(Guid id, IReadOnlyList<IEventSourcedEvent> history)
     {

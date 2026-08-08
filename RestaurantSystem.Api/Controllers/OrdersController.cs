@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using RestaurantSystem.Api.Contracts.FoodItems;
 using RestaurantSystem.Api.Contracts.Orders;
 using RestaurantSystem.Application.Orders.Commands;
+using RestaurantSystem.Application.Orders.Commands.CorrectOrder;
 
 namespace RestaurantSystem.Api.Controllers;
 
@@ -77,5 +78,22 @@ public sealed class OrdersController : ControllerBase
         await _mediator.Send(command, ct);
 
         return Accepted();
+    }
+
+    [HttpPut("{orderId:guid}/items/{menuItemId:guid}/quantity")]
+    public async Task<IActionResult> CorrectItemQuantity(
+    [FromRoute] Guid orderId,
+    [FromRoute] Guid menuItemId,
+    [FromBody] CorrectOrderRequest request,
+    CancellationToken cancellationToken)
+    {
+        await _mediator.Send(new CorrectOrderCommand(
+            orderId,
+            menuItemId,
+            request.NewQuantity,
+            request.OriginalEventId,
+            request.Reason), cancellationToken);
+
+        return NoContent();
     }
 }

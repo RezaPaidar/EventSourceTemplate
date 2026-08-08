@@ -2,14 +2,18 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using RestaurantSystem.Application.Abstractions.Events;
 using RestaurantSystem.Application.Abstractions.Messaging;
 using RestaurantSystem.Application.Abstractions.Messaging.Kafka;
+using RestaurantSystem.Application.Abstractions.Notifications;
 using RestaurantSystem.Application.Abstractions.Orders;
 using RestaurantSystem.Application.Abstractions.Persistence;
 using RestaurantSystem.Application.Abstractions.Projections;
+using RestaurantSystem.Infrastructure.Events;
 using RestaurantSystem.Infrastructure.Messaging.Kafka;
 using RestaurantSystem.Infrastructure.Messaging.Kafka.Consumers;
 using RestaurantSystem.Infrastructure.Messaging.Outbox;
+using RestaurantSystem.Infrastructure.Notifications;
 using RestaurantSystem.Infrastructure.Persistence.EventStore;
 using RestaurantSystem.Infrastructure.Persistence.Projections;
 using RestaurantSystem.Infrastructure.ReadStore;
@@ -34,6 +38,7 @@ public static class DependencyInjection
                 o.MigrationsHistoryTable("__EFMigrationsHistory_Read", "ReadStore")));
 
         services.AddScoped<RestaurantSystem.Domain.Core.IEventStore, PostgresEventStore>();
+
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<EventStoreDbContext>());
 
         services.AddSingleton(new System.Text.Json.JsonSerializerOptions
@@ -50,13 +55,20 @@ public static class DependencyInjection
 
         services.Configure<OutboxDispatcherOptions>(
             configuration.GetSection(nameof(OutboxDispatcherOptions)));
+
         services.AddScoped<IOutboxDispatcher, OutboxDispatcher>();
+
         services.AddHostedService<OutboxDispatcherBackgroundService>();
 
         services.Configure<KafkaPublisherOptions>(configuration.GetSection(nameof(KafkaPublisherOptions)));
+
         services.AddScoped<IIntegrationEventPublisher, KafkaEventPublisher>();
 
         services.AddScoped<IIntegrationEventDispatcher, IntegrationEventDispatcher>();
+
+        services.AddScoped<IKitchenOrderNotifier, KitchenOrderNotifier>();
+
+        services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
 
         services.AddSingleton<IConsumer<string, string>>(sp =>
         {
